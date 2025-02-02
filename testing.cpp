@@ -1,6 +1,8 @@
 
 #include "file_dist.h"
 
-void main(){
+int main(){
     file_dist fd("");
+
+    return 0;
 }

@@ -38,32 +38,30 @@ file_dist::~file_dist()
         
         FILE* pipe = popen((std::string("umount ") + mount.second.path().string()).c_str(), "r");
         if(pipe != NULL){
-            pclose(pipe);
+            WEXITSTATUS(pclose(pipe));
         }
     }
 }
 
 void file_dist::mount_and_add_device(std::filesystem::directory_entry path, target_fs_type type)
 {
-    FILE* pipe;
 
     auto temp_mount_dir_path = create_temporary_directory();
-
+    std::string mountstr;
     if(type == other){
-        pipe = popen((std::string("mount ") +
+        mountstr = "mount " +
         path.path().string() + 
         ' ' + 
-        temp_mount_dir_path.string()
-        ).c_str(), "r");
+        temp_mount_dir_path.string();
     }
     else if(type == ltfs){
-        pipe = popen((std::string("ltfs -o devname=") +
+        mountstr = "ltfs -o devname=" +
         path.path().string() +
         ' ' + 
-        temp_mount_dir_path.string()
-        ).c_str(), "r");
+        temp_mount_dir_path.string();
     }
-
+    std::cout << "Mounting device with command: " << mountstr << std::endl;
+    FILE* pipe = popen(mountstr.c_str(), "r");
     if (pipe == NULL)
     {
         throw new std::runtime_error(std::string("Could not open pipe to mount filesystem on device ") + path.path().string());
@@ -73,8 +71,13 @@ void file_dist::mount_and_add_device(std::filesystem::directory_entry path, targ
     while(fread(&c, 1,1,pipe) == 1){
         output += c;
     }
-    pclose(pipe);
 
+    int mount_exit_code = WEXITSTATUS(pclose(pipe));
+
+    std::cout << "MOUNT OUTPUT*******************************" << std::endl;
     std::cout << output << std::endl;
+    std::cout << "MOUNT retcode: " << mount_exit_code << std::endl;
+
+    real_mountpoints.emplace("testid", temp_mount_dir_path);
     //this->real_mountpoints();
 }
