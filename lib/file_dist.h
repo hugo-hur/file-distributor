@@ -8,6 +8,10 @@ class file_dist{
     private:
     std::filesystem::path mountpoint;
     std::map<std::string,std::filesystem::directory_entry> real_mountpoints;
+
+    std::vector<std::filesystem::path> filelists;
+    std::vector<std::filesystem::path> medialists;
+
     public:
     enum target_fs_type{
         ltfs,

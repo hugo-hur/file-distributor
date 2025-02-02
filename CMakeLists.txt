@@ -19,6 +19,6 @@ target_include_directories(filedist PRIVATE lib/)
 
 add_executable(testing "testing.cpp")
 target_include_directories(testing PRIVATE lib/)
-target_link_libraries(testing PUBLIC filedist)
+target_link_libraries(testing PUBLIC filedist uuid)
 
 

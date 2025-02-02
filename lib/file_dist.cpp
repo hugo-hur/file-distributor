@@ -1,7 +1,8 @@
 #include "file_dist.h"
 #include <random>
 #include <iostream>
-
+#include <fstream>
+#include <uuid/uuid.h>
 
 static std::filesystem::path create_temporary_directory(
       unsigned long long max_tries = 10000) {
@@ -78,6 +79,94 @@ void file_dist::mount_and_add_device(std::filesystem::directory_entry path, targ
     std::cout << output << std::endl;
     std::cout << "MOUNT retcode: " << mount_exit_code << std::endl;
 
-    real_mountpoints.emplace("testid", temp_mount_dir_path);
-    //this->real_mountpoints();
+    std::cout << "Device mounted to: " << temp_mount_dir_path.string() << std::endl;
+    //Read the special files
+    auto filelistpath = temp_mount_dir_path / ".filelist";
+    std::cout << "Filelistpath: " << filelistpath.string() << std::endl;
+    auto medialistpath = temp_mount_dir_path / ".medialist";
+    std::cout << "Medialistpath: " << medialistpath.string() << std::endl;
+
+    std::string id;
+
+    
+    if(std::filesystem::exists(medialistpath)){
+        try{
+            std::stringstream buffer;
+            buffer << std::ifstream(medialistpath).rdbuf();
+            getline(buffer, id,';');//Get the first (this media id)
+
+            //std::string medialist = buffer.str();
+            std::cout << "Reading medialist from media: " << id << std::endl;
+            std::string media_id;
+            while(getline(buffer,media_id,';')){
+                std::cout << "Found media: " << media_id << std::endl;
+            }
+
+        }
+        catch(const std::ifstream::failure& e){
+            throw;
+        }
+    }
+    else{
+        std::cout << "Medialist did not exist on the media! Creating new uuid for media" << std::endl;
+
+        uuid_t uuid_out;
+        uuid_generate_random(uuid_out);
+        char uuid_text[37];
+        uuid_unparse_lower(uuid_out, uuid_text);//Saves as null terminated string
+
+        id = uuid_text;
+
+        std::cout << "Creating new medialist at: " << medialistpath.string() << std::endl;
+        //Write own id as first
+        std::ofstream out(medialistpath);
+        out << id + ";";
+        out.close();
+    }
+
+    std::cout << "Media id: " << id << " mounted to: " << temp_mount_dir_path.string() << std::endl;
+
+    std::cout << "Reading filelist from media: " << id << std::endl;
+    if(std::filesystem::exists(filelistpath)){
+        try{
+            std::stringstream buffer;
+        buffer << std::ifstream(filelistpath).rdbuf();
+            std::string media_id,filename,filetype;
+            while(getline(buffer,media_id,';')){
+                getline(buffer,filename,';');
+                getline(buffer,filetype,';');
+                
+                std::cout << "Found file: " << filename << " at media: " << media_id << " type: " << filetype << std::endl;
+            }
+        }
+        catch(const std::ifstream::failure& e){
+            throw;
+        }
+    }
+    else{
+        std::cout << "Filelist did not exist on the media! Creating one from own contents." << std::endl;
+        std::ofstream out(filelistpath);
+        for(const auto& p: std::filesystem::recursive_directory_iterator(temp_mount_dir_path)) {
+
+            std::cout << "Checking: " << p.path().string() << std::endl;
+            auto fspath = std::filesystem::relative(p.path(),temp_mount_dir_path);
+            auto spath = fspath.string();
+
+            out << id << ';' << spath << ';';
+            if (std::filesystem::is_directory(p)) {
+                std::cout << "Found directory at: " << spath << std::endl;
+                out << "d;";
+            }
+            else{
+                std::cout << "Found file at: " << spath << std::endl;
+                out << "f;";
+            }
+            
+        }
+        std::cout << "Closing filelist" << std::endl;
+        out.close();
+    }
+    //save the newly mounted path
+    real_mountpoints.emplace(id, temp_mount_dir_path);
+    std::cout << "Closing filelist" << std::endl;
 }
